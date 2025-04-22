@@ -1,0 +1,33 @@
+{
+  "name": "solidity-task",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BrutalPowerBG/Solidity.git"
+  },
+  "keywords": [
+    "solidity",
+    "beam",
+    "node",
+    "js",
+    "metamask",
+    "hardhat"
+  ],
+  "author": "Hristo",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/BrutalPowerBG/Solidity/issues"
+  },
+  "homepage": "https://github.com/BrutalPowerBG/Solidity#readme",
+  "description": "",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^5.3.0",
+    "dotenv": "^16.5.0",
+    "hardhat": "^2.23.0"
+  }
+}
