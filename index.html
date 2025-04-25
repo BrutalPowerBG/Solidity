@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: 'unsafe-eval' 'unsafe-inline';">
+    <title>BEAM Greeter dApp</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js" type="application/javascript"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        input {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 300px;
+        }
+        #status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+        .warning {
+            background-color: #fcf8e3;
+            color: #8a6d3b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>BEAM Greeter dApp</h1>
+        <div id="status"></div>
+        
+        <div>
+            <button id="connectWallet">Connect Wallet</button>
+            <span id="walletAddress"></span>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <h3>Current Greeting:</h3>
+            <div id="currentGreeting"></div>
+            <button id="getGreeting">Refresh Greeting</button>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <h3>Set New Greeting:</h3>
+            <input type="text" id="newGreeting" placeholder="Enter new greeting">
+            <button id="setGreeting">Set Greeting</button>
+        </div>
+    </div>
+
+    <script>
+        const contractAddress = "0xa71A9CECdF1D568baa3e81B8C22B3adfC3Bc496a";
+        const contractABI = [
+            "function greet() public view returns (string memory)",
+            "function setGreeting(string memory _greeting) public"
+        ];
+
+        let provider;
+        let signer;
+        let contract;
+
+        // Check if MetaMask is installed
+        function checkMetaMask() {
+            if (typeof window.ethereum === 'undefined') {
+                showStatus('MetaMask is not installed. Please install MetaMask to use this dApp.', 'error');
+                document.getElementById('connectWallet').disabled = true;
+                return false;
+            }
+            return true;
+        }
+
+        // Get network details
+        async function getNetworkDetails() {
+            try {
+                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                const networkVersion = await window.ethereum.request({ method: 'net_version' });
+                console.log('Current chainId:', chainId);
+                console.log('Network version:', networkVersion);
+                return { chainId, networkVersion };
+            } catch (error) {
+                console.error('Error getting network details:', error);
+                return null;
+            }
+        }
+
+        // Check if we're on the correct network
+        async function checkNetwork() {
+            try {
+                const networkDetails = await getNetworkDetails();
+                if (!networkDetails) {
+                    showStatus('Could not get network details', 'error');
+                    return false;
+                }
+
+                console.log('Network details:', networkDetails);
+                
+                // For Avalanche subnets, we need to create a custom provider
+                provider = new ethers.providers.JsonRpcProvider('https://build.onbeam.com/rpc');
+                
+                // Get the network to verify connection
+                const network = await provider.getNetwork();
+                console.log('Connected to network:', network);
+                
+                showStatus('Successfully connected to Beam Subnet Mainnet', 'success');
+                return true;
+            } catch (error) {
+                console.error('Network check error:', error);
+                showStatus('Error checking network: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        async function connectWallet() {
+            try {
+                if (!checkMetaMask()) return;
+                
+                // Request account access
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                if (!accounts || accounts.length === 0) {
+                    showStatus('No accounts found', 'error');
+                    return;
+                }
+
+                const account = accounts[0];
+                
+                // Check network
+                if (!await checkNetwork()) return;
+                
+                // Create a Web3Provider from MetaMask
+                const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
+                
+                // Get the signer from the Web3Provider
+                signer = web3Provider.getSigner();
+                
+                // Get and display wallet address
+                const address = await signer.getAddress();
+                document.getElementById('walletAddress').textContent = `Connected: ${address}`;
+                
+                // Initialize contract with the signer
+                contract = new ethers.Contract(contractAddress, contractABI, signer);
+                
+                // Update UI
+                document.getElementById('connectWallet').disabled = true;
+                document.getElementById('getGreeting').disabled = false;
+                document.getElementById('setGreeting').disabled = false;
+                
+                // Get initial greeting
+                await getGreeting();
+                
+                showStatus('Wallet connected successfully!', 'success');
+            } catch (error) {
+                console.error('Connect wallet error:', error);
+                showStatus('Error connecting wallet: ' + error.message, 'error');
+            }
+        }
+
+        async function getGreeting() {
+            try {
+                if (!contract) {
+                    showStatus('Please connect your wallet first', 'error');
+                    return;
+                }
+                const greeting = await contract.greet();
+                document.getElementById('currentGreeting').textContent = greeting;
+                showStatus('Greeting retrieved successfully!', 'success');
+            } catch (error) {
+                showStatus('Error getting greeting: ' + error.message, 'error');
+            }
+        }
+
+        async function setGreeting() {
+            try {
+                if (!contract) {
+                    showStatus('Please connect your wallet first', 'error');
+                    return;
+                }
+                const newGreeting = document.getElementById('newGreeting').value;
+                if (!newGreeting) {
+                    showStatus('Please enter a greeting', 'error');
+                    return;
+                }
+
+                const tx = await contract.setGreeting(newGreeting);
+                showStatus('Transaction sent! Waiting for confirmation...', 'success');
+                
+                await tx.wait();
+                await getGreeting();
+                
+                showStatus('Greeting updated successfully!', 'success');
+            } catch (error) {
+                showStatus('Error setting greeting: ' + error.message, 'error');
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = type;
+        }
+
+        // Event Listeners
+        document.getElementById('connectWallet').addEventListener('click', connectWallet);
+        document.getElementById('getGreeting').addEventListener('click', getGreeting);
+        document.getElementById('setGreeting').addEventListener('click', setGreeting);
+
+        // Initial UI state
+        document.getElementById('getGreeting').disabled = true;
+        document.getElementById('setGreeting').disabled = true;
+
+        // Check MetaMask on page load
+        window.addEventListener('load', checkMetaMask);
+
+        // Listen for network changes
+        if (window.ethereum) {
+            window.ethereum.on('chainChanged', (chainId) => {
+                if (chainId !== '0x10e9') {
+                    showStatus('Please switch to BEAM network in MetaMask', 'warning');
+                } else {
+                    showStatus('Connected to BEAM network', 'success');
+                }
+            });
+        }
+    </script>
+</body>
+</html> 

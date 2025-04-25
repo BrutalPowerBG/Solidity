@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BEAM Greeter dApp</title>
+    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js" type="application/javascript"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        input {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 300px;
+        }
+        #status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>BEAM Greeter dApp</h1>
+        <div id="status"></div>
+        
+        <div>
+            <button id="connectWallet">Connect Wallet</button>
+            <span id="walletAddress"></span>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <h3>Current Greeting:</h3>
+            <div id="currentGreeting"></div>
+            <button id="getGreeting">Refresh Greeting</button>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <h3>Set New Greeting:</h3>
+            <input type="text" id="newGreeting" placeholder="Enter new greeting">
+            <button id="setGreeting">Set Greeting</button>
+        </div>
+    </div>
+
+    <script>
+        const contractAddress = "0xa71A9CECdF1D568baa3e81B8C22B3adfC3Bc496a";
+        const contractABI = [
+            "function greet() public view returns (string memory)",
+            "function setGreeting(string memory _greeting) public"
+        ];
+
+        let provider;
+        let signer;
+        let contract;
+
+        async function connectWallet() {
+            try {
+                // Request account access
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                
+                // Create provider and signer
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();
+                
+                // Get and display wallet address
+                const address = await signer.getAddress();
+                document.getElementById('walletAddress').textContent = `Connected: ${address}`;
+                
+                // Initialize contract
+                contract = new ethers.Contract(contractAddress, contractABI, signer);
+                
+                // Update UI
+                document.getElementById('connectWallet').disabled = true;
+                document.getElementById('getGreeting').disabled = false;
+                document.getElementById('setGreeting').disabled = false;
+                
+                // Get initial greeting
+                await getGreeting();
+                
+                showStatus('Wallet connected successfully!', 'success');
+            } catch (error) {
+                showStatus('Error connecting wallet: ' + error.message, 'error');
+            }
+        }
+
+        async function getGreeting() {
+            try {
+                const greeting = await contract.greet();
+                document.getElementById('currentGreeting').textContent = greeting;
+                showStatus('Greeting retrieved successfully!', 'success');
+            } catch (error) {
+                showStatus('Error getting greeting: ' + error.message, 'error');
+            }
+        }
+
+        async function setGreeting() {
+            try {
+                const newGreeting = document.getElementById('newGreeting').value;
+                if (!newGreeting) {
+                    showStatus('Please enter a greeting', 'error');
+                    return;
+                }
+
+                const tx = await contract.setGreeting(newGreeting);
+                showStatus('Transaction sent! Waiting for confirmation...', 'success');
+                
+                await tx.wait();
+                await getGreeting();
+                
+                showStatus('Greeting updated successfully!', 'success');
+            } catch (error) {
+                showStatus('Error setting greeting: ' + error.message, 'error');
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = type;
+        }
+
+        // Event Listeners
+        document.getElementById('connectWallet').addEventListener('click', connectWallet);
+        document.getElementById('getGreeting').addEventListener('click', getGreeting);
+        document.getElementById('setGreeting').addEventListener('click', setGreeting);
+
+        // Initial UI state
+        document.getElementById('getGreeting').disabled = true;
+        document.getElementById('setGreeting').disabled = true;
+    </script>
+</body>
+</html>

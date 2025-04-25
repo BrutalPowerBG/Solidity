@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Greeter</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+</head>
+<body>
+  <h1>Greeter Contract</h1>
+  <button onclick="connect()">Connect Wallet</button>
+  <button onclick="getGreeting()">Get Greeting</button>
+  <input id="newGreeting" placeholder="New greeting" />
+  <button onclick="setGreeting()">Set Greeting</button>
+  <p id="currentGreeting"></p>
+
+  <script>
+    let provider;
+    let signer;
+    let greeter;
+
+    const greeterAddress = "0xD4bc050188230b1De0164E9c1Dfe7fC111D4d234";
+    const greeterABI = [
+      "function greet() view returns (string)",
+      "function setGreeting(string _greeting)"
+    ];
+
+    async function connect() {
+    if (typeof window.ethereum !== "undefined") {
+            try {
+            await window.ethereum.request({ method: "eth_requestAccounts" });
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+            signer = provider.getSigner();
+            greeter = new ethers.Contract(greeterAddress, greeterABI, signer);
+            alert("Wallet connected!");
+            } catch (error) {
+            console.error("User rejected connection or something went wrong:", error);
+            }
+        } else {
+            alert("MetaMask not found! Please install MetaMask.");
+        }
+    }
+
+    async function getGreeting() {
+      const greeting = await greeter.greet();
+      document.getElementById("currentGreeting").innerText = "Current: " + greeting;
+    }
+
+    async function setGreeting() {
+      const newGreeting = document.getElementById("newGreeting").value;
+      const tx = await greeter.setGreeting(newGreeting);
+      await tx.wait(); // Wait for transaction to be mined
+      alert("Greeting updated!");
+      getGreeting();
+    }
+  </script>
+</body>
+</html>
